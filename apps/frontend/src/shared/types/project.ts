@@ -14,7 +14,7 @@ export interface Project {
 
 export interface ProjectSettings {
   model: string;
-  memoryBackend: 'graphiti' | 'file';
+  memoryBackend: "graphiti" | "file";
   linearSync: boolean;
   linearTeamId?: string;
   notifications: NotificationSettings;
@@ -39,7 +39,7 @@ export interface NotificationSettings {
 
 export interface ProjectIndex {
   project_root: string;
-  project_type: 'single' | 'monorepo';
+  project_type: "single" | "monorepo";
   services: Record<string, ServiceInfo>;
   infrastructure: InfrastructureInfo;
   conventions: ConventionsInfo;
@@ -50,7 +50,14 @@ export interface ServiceInfo {
   path: string;
   language?: string;
   framework?: string;
-  type?: 'backend' | 'frontend' | 'worker' | 'scraper' | 'library' | 'proxy' | 'unknown';
+  type?:
+    | "backend"
+    | "frontend"
+    | "worker"
+    | "scraper"
+    | "library"
+    | "proxy"
+    | "unknown";
   package_manager?: string;
   default_port?: number;
   entry_point?: string;
@@ -69,11 +76,14 @@ export interface ServiceInfo {
   consumes?: string[];
   environment?: {
     detected_count: number;
-    variables: Record<string, {
-      type: string;
-      sensitive: boolean;
-      required: boolean;
-    }>;
+    variables: Record<
+      string,
+      {
+        type: string;
+        sensitive: boolean;
+        required: boolean;
+      }
+    >;
   };
   api?: {
     total_routes: number;
@@ -86,10 +96,13 @@ export interface ServiceInfo {
   database?: {
     total_models: number;
     model_names: string[];
-    models: Record<string, {
-      orm: string;
-      fields: Record<string, unknown>;
-    }>;
+    models: Record<
+      string,
+      {
+        orm: string;
+        fields: Record<string, unknown>;
+      }
+    >;
   };
   services?: {
     databases?: Array<{
@@ -178,16 +191,29 @@ export interface GraphitiConnectionTestResult {
 // Memory Provider Types
 // Embedding Providers: OpenAI, Voyage AI, Azure OpenAI, Ollama (local), Google, OpenRouter
 // Note: LLM provider removed - Claude SDK handles RAG queries
-export type GraphitiEmbeddingProvider = 'openai' | 'voyage' | 'azure_openai' | 'ollama' | 'google' | 'openrouter';
+export type GraphitiEmbeddingProvider =
+  | "openai"
+  | "voyage"
+  | "azure_openai"
+  | "ollama"
+  | "google"
+  | "openrouter";
 
 // Legacy type aliases for backward compatibility
-export type GraphitiLLMProvider = 'openai' | 'anthropic' | 'azure_openai' | 'ollama' | 'google' | 'groq' | 'openrouter';
+export type GraphitiLLMProvider =
+  | "openai"
+  | "anthropic"
+  | "azure_openai"
+  | "ollama"
+  | "google"
+  | "groq"
+  | "openrouter";
 export type GraphitiProviderType = GraphitiLLMProvider;
 
 export interface GraphitiProviderConfig {
   // Embedding Provider (LLM provider removed - Claude SDK handles RAG)
   embeddingProvider: GraphitiEmbeddingProvider;
-  embeddingModel?: string;  // Embedding model, uses provider default if not specified
+  embeddingModel?: string; // Embedding model, uses provider default if not specified
 
   // OpenAI Embeddings
   openaiApiKey?: string;
@@ -208,18 +234,18 @@ export interface GraphitiProviderConfig {
 
   // OpenRouter (multi-provider aggregator)
   openrouterApiKey?: string;
-  openrouterBaseUrl?: string;  // Default: https://openrouter.ai/api/v1
-  openrouterLlmModel?: string;  // LLM model selection (e.g., 'anthropic/claude-3.5-sonnet')
+  openrouterBaseUrl?: string; // Default: https://openrouter.ai/api/v1
+  openrouterLlmModel?: string; // LLM model selection (e.g., 'anthropic/claude-3.5-sonnet')
   openrouterEmbeddingModel?: string;
 
   // Ollama Embeddings (local, no API key required)
-  ollamaBaseUrl?: string;  // Default: http://localhost:11434
+  ollamaBaseUrl?: string; // Default: http://localhost:11434
   ollamaEmbeddingModel?: string;
   ollamaEmbeddingDim?: number;
 
   // LadybugDB settings (embedded database - no Docker required)
-  database?: string;  // Database name (default: auto_claude_memory)
-  dbPath?: string;    // Database storage path (default: ~/.auto-claude/memories)
+  database?: string; // Database name (default: auto_claude_memory)
+  dbPath?: string; // Database storage path (default: ~/.auto-claude/memories)
 }
 
 export interface GraphitiProviderInfo {
@@ -243,7 +269,13 @@ export interface GraphitiMemoryState {
 
 export interface MemoryEpisode {
   id: string;
-  type: 'session_insight' | 'codebase_discovery' | 'codebase_map' | 'pattern' | 'gotcha' | 'task_outcome';
+  type:
+    | "session_insight"
+    | "codebase_discovery"
+    | "codebase_map"
+    | "pattern"
+    | "gotcha"
+    | "task_outcome";
   timestamp: string;
   content: string;
   session_number?: number;
@@ -269,9 +301,13 @@ export interface ProjectContextData {
 export interface ProjectEnvConfig {
   // Claude Authentication
   claudeOAuthToken?: string;
-  claudeAuthStatus: 'authenticated' | 'token_set' | 'not_configured';
+  claudeAuthStatus: "authenticated" | "token_set" | "not_configured";
   // Indicates if the Claude token is from global settings (not project-specific)
   claudeTokenIsGlobal?: boolean;
+
+  // Proxy Mode (ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN)
+  isProxyMode?: boolean;
+  anthropicBaseUrl?: string;
 
   // Model Override
   autoBuildModel?: string;
@@ -295,7 +331,7 @@ export interface ProjectEnvConfig {
   // Graphiti Memory Integration (V2 - Multi-provider support)
   // Uses LadybugDB embedded database (no Docker required, Python 3.12+)
   graphitiEnabled: boolean;
-  graphitiProviderConfig?: GraphitiProviderConfig;  // Provider configuration
+  graphitiProviderConfig?: GraphitiProviderConfig; // Provider configuration
   // Legacy fields (still supported for backward compatibility)
   openaiApiKey?: string;
   // Indicates if the OpenAI key is from global settings (not project-specific)

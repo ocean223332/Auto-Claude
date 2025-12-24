@@ -1,10 +1,10 @@
-import { Key, ExternalLink, Loader2, Globe } from 'lucide-react';
-import { CollapsibleSection } from './CollapsibleSection';
-import { StatusBadge } from './StatusBadge';
-import { PasswordInput } from './PasswordInput';
-import { Button } from '../ui/button';
-import { Label } from '../ui/label';
-import type { ProjectEnvConfig } from '../../../shared/types';
+import { Key, ExternalLink, Loader2, Globe } from "lucide-react";
+import { CollapsibleSection } from "./CollapsibleSection";
+import { StatusBadge } from "./StatusBadge";
+import { PasswordInput } from "./PasswordInput";
+import { Button } from "../ui/button";
+import { Label } from "../ui/label";
+import type { ProjectEnvConfig } from "../../../shared/types";
 
 interface ClaudeAuthSectionProps {
   isExpanded: boolean;
@@ -13,7 +13,7 @@ interface ClaudeAuthSectionProps {
   isLoadingEnv: boolean;
   envError: string | null;
   isCheckingAuth: boolean;
-  authStatus: 'checking' | 'authenticated' | 'not_authenticated' | 'error';
+  authStatus: "checking" | "authenticated" | "not_authenticated" | "error";
   onClaudeSetup: () => void;
   onUpdateConfig: (updates: Partial<ProjectEnvConfig>) => void;
 }
@@ -29,11 +29,12 @@ export function ClaudeAuthSection({
   onClaudeSetup,
   onUpdateConfig,
 }: ClaudeAuthSectionProps) {
-  const badge = authStatus === 'authenticated' ? (
-    <StatusBadge status="success" label="Connected" />
-  ) : authStatus === 'not_authenticated' ? (
-    <StatusBadge status="warning" label="Not Connected" />
-  ) : null;
+  const badge =
+    authStatus === "authenticated" ? (
+      <StatusBadge status="success" label="Connected" />
+    ) : authStatus === "not_authenticated" ? (
+      <StatusBadge status="warning" label="Not Connected" />
+    ) : null;
 
   return (
     <CollapsibleSection
@@ -54,12 +55,19 @@ export function ClaudeAuthSection({
           <div className="rounded-lg border border-border bg-muted/30 p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">Claude CLI</p>
+                <p className="text-sm font-medium text-foreground">
+                  Claude CLI
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {isCheckingAuth ? 'Checking...' :
-                    authStatus === 'authenticated' ? 'Authenticated via OAuth' :
-                    authStatus === 'not_authenticated' ? 'Not authenticated' :
-                    'Status unknown'}
+                  {isCheckingAuth
+                    ? "Checking..."
+                    : authStatus === "authenticated"
+                      ? envConfig?.isProxyMode
+                        ? `Authenticated via Proxy${envConfig?.anthropicBaseUrl ? ` (${envConfig.anthropicBaseUrl})` : ""}`
+                        : "Authenticated via OAuth"
+                      : authStatus === "not_authenticated"
+                        ? "Not authenticated"
+                        : "Status unknown"}
                 </p>
               </div>
               <Button
@@ -73,7 +81,9 @@ export function ClaudeAuthSection({
                 ) : (
                   <>
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    {authStatus === 'authenticated' ? 'Re-authenticate' : 'Setup OAuth'}
+                    {authStatus === "authenticated"
+                      ? "Re-authenticate"
+                      : "Setup OAuth"}
                   </>
                 )}
               </Button>
@@ -84,7 +94,7 @@ export function ClaudeAuthSection({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-foreground">
-                OAuth Token {envConfig.claudeTokenIsGlobal ? '(Override)' : ''}
+                OAuth Token {envConfig.claudeTokenIsGlobal ? "(Override)" : ""}
               </Label>
               {envConfig.claudeTokenIsGlobal && (
                 <span className="flex items-center gap-1 text-xs text-info">
@@ -95,19 +105,33 @@ export function ClaudeAuthSection({
             </div>
             {envConfig.claudeTokenIsGlobal ? (
               <p className="text-xs text-muted-foreground">
-                Using token from App Settings. Enter a project-specific token below to override.
+                Using token from App Settings. Enter a project-specific token
+                below to override.
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Paste a token from <code className="px-1 bg-muted rounded">claude setup-token</code>
+                Paste a token from{" "}
+                <code className="px-1 bg-muted rounded">
+                  claude setup-token
+                </code>
               </p>
             )}
             <PasswordInput
-              value={envConfig.claudeTokenIsGlobal ? '' : (envConfig.claudeOAuthToken || '')}
-              onChange={(value) => onUpdateConfig({
-                claudeOAuthToken: value || undefined,
-              })}
-              placeholder={envConfig.claudeTokenIsGlobal ? 'Enter to override global token...' : 'your-oauth-token-here'}
+              value={
+                envConfig.claudeTokenIsGlobal
+                  ? ""
+                  : envConfig.claudeOAuthToken || ""
+              }
+              onChange={(value) =>
+                onUpdateConfig({
+                  claudeOAuthToken: value || undefined,
+                })
+              }
+              placeholder={
+                envConfig.claudeTokenIsGlobal
+                  ? "Enter to override global token..."
+                  : "your-oauth-token-here"
+              }
             />
           </div>
         </>

@@ -32,6 +32,18 @@ SDK_ENV_VARS = [
 ]
 
 
+def is_proxy_mode() -> bool:
+    """
+    Check if running in proxy mode.
+
+    Proxy mode is detected when ANTHROPIC_BASE_URL is set,
+    indicating a custom API endpoint (proxy, gateway, etc.).
+    In proxy mode, we accept any ANTHROPIC_AUTH_TOKEN without
+    OAuth token format validation.
+    """
+    return bool(os.environ.get("ANTHROPIC_BASE_URL"))
+
+
 def get_token_from_keychain() -> str | None:
     """
     Get authentication token from macOS Keychain.
@@ -115,7 +127,11 @@ def get_auth_token() -> str | None:
 
 def get_auth_token_source() -> str | None:
     """Get the name of the source that provided the auth token."""
-    # Check environment variables first
+    # Check for proxy mode first (ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN)
+    if is_proxy_mode() and os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+        return "Proxy"
+
+    # Check environment variables
     for var in AUTH_TOKEN_ENV_VARS:
         if os.environ.get(var):
             return var
@@ -137,24 +153,27 @@ def require_auth_token() -> str:
     token = get_auth_token()
     if not token:
         error_msg = (
-            "No OAuth token found.\n\n"
-            "Auto Claude requires Claude Code OAuth authentication.\n"
-            "Direct API keys (ANTHROPIC_API_KEY) are not supported.\n\n"
+            "No authentication token found.\n\n"
+            "Auto Claude supports two authentication methods:\n\n"
+            "Option 1: Claude Code OAuth (recommended)\n"
         )
         # Provide platform-specific guidance
         if platform.system() == "Darwin":
             error_msg += (
-                "To authenticate:\n"
                 "  1. Run: claude setup-token\n"
-                "  2. The token will be saved to macOS Keychain automatically\n\n"
-                "Or set CLAUDE_CODE_OAUTH_TOKEN in your .env file."
+                "  2. Token will be saved to macOS Keychain automatically\n\n"
             )
         else:
             error_msg += (
-                "To authenticate:\n"
                 "  1. Run: claude setup-token\n"
-                "  2. Set CLAUDE_CODE_OAUTH_TOKEN in your .env file"
+                "  2. Set CLAUDE_CODE_OAUTH_TOKEN in your .env file\n\n"
             )
+        error_msg += (
+            "Option 2: Proxy/Gateway\n"
+            "  Set both in your .env file:\n"
+            "  ANTHROPIC_AUTH_TOKEN=your-proxy-token\n"
+            "  ANTHROPIC_BASE_URL=http://your-proxy:port"
+        )
         raise ValueError(error_msg)
     return token
 
