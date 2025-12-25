@@ -49,6 +49,11 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Update package.json version
         id: version
         run: |
@@ -56,7 +61,7 @@ jobs:
 
           # Update frontend package.json
           cd apps/frontend
-          npm version "$VERSION" --no-git-tag-version
+          pnpm version "$VERSION" --no-git-tag-version
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Updated package.json to version $VERSION"
@@ -67,7 +72,7 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Stage all changed files in frontend directory (handles package-lock.json if it exists)
+          # Stage all changed files in frontend directory (handles pnpm-lock.yaml if it exists)
           git add -A apps/frontend/
           git commit -m "chore: bump version to $VERSION for beta release"
           git push origin develop
@@ -94,24 +99,29 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Get npm cache directory
-        id: npm-cache
-        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v4
         with:
-          path: ${{ steps.npm-cache.outputs.dir }}
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-npm-
+          path: ${{ steps.pnpm-cache.outputs.dir }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
-        run: cd apps/frontend && npm ci
+        run: cd apps/frontend && pnpm install --frozen-lockfile
 
       - name: Build application
-        run: cd apps/frontend && npm run build
+        run: cd apps/frontend && pnpm run build
 
       - name: Package macOS (Intel)
-        run: cd apps/frontend && npm run package:mac -- --arch=x64
+        run: cd apps/frontend && pnpm run package:mac -- --arch=x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
@@ -161,24 +171,29 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Get npm cache directory
-        id: npm-cache
-        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v4
         with:
-          path: ${{ steps.npm-cache.outputs.dir }}
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-npm-
+          path: ${{ steps.pnpm-cache.outputs.dir }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
-        run: cd apps/frontend && npm ci
+        run: cd apps/frontend && pnpm install --frozen-lockfile
 
       - name: Build application
-        run: cd apps/frontend && npm run build
+        run: cd apps/frontend && pnpm run build
 
       - name: Package macOS (Apple Silicon)
-        run: cd apps/frontend && npm run package:mac -- --arch=arm64
+        run: cd apps/frontend && pnpm run package:mac -- --arch=arm64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
@@ -227,25 +242,30 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Get npm cache directory
-        id: npm-cache
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
         shell: bash
-        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+        run: echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v4
         with:
-          path: ${{ steps.npm-cache.outputs.dir }}
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-npm-
+          path: ${{ steps.pnpm-cache.outputs.dir }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
-        run: cd apps/frontend && npm ci
+        run: cd apps/frontend && pnpm install --frozen-lockfile
 
       - name: Build application
-        run: cd apps/frontend && npm run build
+        run: cd apps/frontend && pnpm run build
 
       - name: Package Windows
-        run: cd apps/frontend && npm run package:win
+        run: cd apps/frontend && pnpm run package:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.WIN_CERTIFICATE }}
@@ -271,24 +291,29 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Get npm cache directory
-        id: npm-cache
-        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v4
         with:
-          path: ${{ steps.npm-cache.outputs.dir }}
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-npm-
+          path: ${{ steps.pnpm-cache.outputs.dir }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
-        run: cd apps/frontend && npm ci
+        run: cd apps/frontend && pnpm install --frozen-lockfile
 
       - name: Build application
-        run: cd apps/frontend && npm run build
+        run: cd apps/frontend && pnpm run build
 
       - name: Package Linux
-        run: cd apps/frontend && npm run package:linux
+        run: cd apps/frontend && pnpm run package:linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

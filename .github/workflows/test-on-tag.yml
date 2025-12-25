@@ -3,7 +3,7 @@ name: Test on Tag
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   # Python tests
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.12', '3.13']
+        python-version: ["3.12", "3.13"]
 
     steps:
       - name: Checkout
@@ -52,12 +52,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Install dependencies
         working-directory: apps/frontend
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests
         working-directory: apps/frontend
-        run: npm run test
+        run: pnpm run test
