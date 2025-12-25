@@ -349,12 +349,14 @@ def cmd_pull_model(args) -> None:
         return
 
     try:
-        # Run ollama pull command
+        # Run ollama pull command with explicit UTF-8 encoding for Windows compatibility
         process = subprocess.Popen(
             ["ollama", "pull", model_name],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             bufsize=1,
         )
 
