@@ -52,7 +52,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: latest
 
       - name: Update package.json version
         id: version
@@ -102,7 +102,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: latest
 
       - name: Get pnpm store directory
         id: pnpm-cache
@@ -174,7 +174,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: latest
 
       - name: Get pnpm store directory
         id: pnpm-cache
@@ -245,7 +245,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: latest
 
       - name: Get pnpm store directory
         id: pnpm-cache
@@ -294,7 +294,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: latest
 
       - name: Get pnpm store directory
         id: pnpm-cache
