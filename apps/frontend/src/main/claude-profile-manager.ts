@@ -11,44 +11,44 @@
  * - profile-utils: Helper utilities
  */
 
-import { app } from 'electron';
-import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { app } from "electron";
+import { join } from "path";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import type {
   ClaudeProfile,
   ClaudeProfileSettings,
   ClaudeUsageData,
   ClaudeRateLimitEvent,
-  ClaudeAutoSwitchSettings
-} from '../shared/types';
+  ClaudeAutoSwitchSettings,
+} from "../shared/types";
 
 // Module imports
-import { encryptToken, decryptToken } from './claude-profile/token-encryption';
-import { parseUsageOutput } from './claude-profile/usage-parser';
+import { encryptToken, decryptToken } from "./claude-profile/token-encryption";
+import { parseUsageOutput } from "./claude-profile/usage-parser";
 import {
   recordRateLimitEvent as recordRateLimitEventImpl,
   isProfileRateLimited as isProfileRateLimitedImpl,
-  clearRateLimitEvents as clearRateLimitEventsImpl
-} from './claude-profile/rate-limit-manager';
+  clearRateLimitEvents as clearRateLimitEventsImpl,
+} from "./claude-profile/rate-limit-manager";
 import {
   loadProfileStore,
   saveProfileStore,
   ProfileStoreData,
-  DEFAULT_AUTO_SWITCH_SETTINGS
-} from './claude-profile/profile-storage';
+  DEFAULT_AUTO_SWITCH_SETTINGS,
+} from "./claude-profile/profile-storage";
 import {
   getBestAvailableProfile,
   shouldProactivelySwitch as shouldProactivelySwitchImpl,
-  getProfilesSortedByAvailability as getProfilesSortedByAvailabilityImpl
-} from './claude-profile/profile-scorer';
+  getProfilesSortedByAvailability as getProfilesSortedByAvailabilityImpl,
+} from "./claude-profile/profile-scorer";
 import {
   DEFAULT_CLAUDE_CONFIG_DIR,
   generateProfileId as generateProfileIdImpl,
   createProfileDirectory as createProfileDirectoryImpl,
   isProfileAuthenticated as isProfileAuthenticatedImpl,
   hasValidToken,
-  expandHomePath
-} from './claude-profile/profile-utils';
+  expandHomePath,
+} from "./claude-profile/profile-utils";
 
 /**
  * Manages Claude Code profiles for multi-account support.
@@ -60,8 +60,8 @@ export class ClaudeProfileManager {
   private data: ProfileStoreData;
 
   constructor() {
-    const configDir = join(app.getPath('userData'), 'config');
-    this.storePath = join(configDir, 'claude-profiles.json');
+    const configDir = join(app.getPath("userData"), "config");
+    this.storePath = join(configDir, "claude-profiles.json");
 
     // Ensure directory exists
     if (!existsSync(configDir)) {
@@ -90,19 +90,19 @@ export class ClaudeProfileManager {
    */
   private createDefaultData(): ProfileStoreData {
     const defaultProfile: ClaudeProfile = {
-      id: 'default',
-      name: 'Default',
+      id: "default",
+      name: "Default",
       configDir: DEFAULT_CLAUDE_CONFIG_DIR,
       isDefault: true,
-      description: 'Default Claude configuration (~/.claude)',
-      createdAt: new Date()
+      description: "Default Claude configuration (~/.claude)",
+      createdAt: new Date(),
     };
 
     return {
       version: 3,
       profiles: [defaultProfile],
-      activeProfileId: 'default',
-      autoSwitch: DEFAULT_AUTO_SWITCH_SETTINGS
+      activeProfileId: "default",
+      autoSwitch: DEFAULT_AUTO_SWITCH_SETTINGS,
     };
   }
 
@@ -120,7 +120,7 @@ export class ClaudeProfileManager {
     return {
       profiles: this.data.profiles,
       activeProfileId: this.data.activeProfileId,
-      autoSwitch: this.data.autoSwitch || DEFAULT_AUTO_SWITCH_SETTINGS
+      autoSwitch: this.data.autoSwitch || DEFAULT_AUTO_SWITCH_SETTINGS,
     };
   }
 
@@ -137,7 +137,7 @@ export class ClaudeProfileManager {
   updateAutoSwitchSettings(settings: Partial<ClaudeAutoSwitchSettings>): void {
     this.data.autoSwitch = {
       ...(this.data.autoSwitch || DEFAULT_AUTO_SWITCH_SETTINGS),
-      ...settings
+      ...settings,
     };
     this.save();
   }
@@ -146,17 +146,19 @@ export class ClaudeProfileManager {
    * Get a specific profile by ID
    */
   getProfile(profileId: string): ClaudeProfile | undefined {
-    return this.data.profiles.find(p => p.id === profileId);
+    return this.data.profiles.find((p) => p.id === profileId);
   }
 
   /**
    * Get the active profile
    */
   getActiveProfile(): ClaudeProfile {
-    const active = this.data.profiles.find(p => p.id === this.data.activeProfileId);
+    const active = this.data.profiles.find(
+      (p) => p.id === this.data.activeProfileId,
+    );
     if (!active) {
       // Fallback to default
-      const defaultProfile = this.data.profiles.find(p => p.isDefault);
+      const defaultProfile = this.data.profiles.find((p) => p.isDefault);
       if (defaultProfile) {
         return defaultProfile;
       }
@@ -175,7 +177,7 @@ export class ClaudeProfileManager {
       profile.configDir = expandHomePath(profile.configDir);
     }
 
-    const index = this.data.profiles.findIndex(p => p.id === profile.id);
+    const index = this.data.profiles.findIndex((p) => p.id === profile.id);
 
     if (index >= 0) {
       // Update existing
@@ -200,23 +202,24 @@ export class ClaudeProfileManager {
 
     // Cannot delete default profile
     if (profile.isDefault) {
-      console.warn('[ClaudeProfileManager] Cannot delete default profile');
+      console.warn("[ClaudeProfileManager] Cannot delete default profile");
       return false;
     }
 
     // Cannot delete if it's the only profile
     if (this.data.profiles.length <= 1) {
-      console.warn('[ClaudeProfileManager] Cannot delete last profile');
+      console.warn("[ClaudeProfileManager] Cannot delete last profile");
       return false;
     }
 
     // Remove the profile
-    this.data.profiles = this.data.profiles.filter(p => p.id !== profileId);
+    this.data.profiles = this.data.profiles.filter((p) => p.id !== profileId);
 
     // If we deleted the active profile, switch to default
     if (this.data.activeProfileId === profileId) {
-      const defaultProfile = this.data.profiles.find(p => p.isDefault);
-      this.data.activeProfileId = defaultProfile?.id || this.data.profiles[0].id;
+      const defaultProfile = this.data.profiles.find((p) => p.isDefault);
+      this.data.activeProfileId =
+        defaultProfile?.id || this.data.profiles[0].id;
     }
 
     this.save();
@@ -234,13 +237,18 @@ export class ClaudeProfileManager {
 
     // Cannot rename to empty name
     if (!newName.trim()) {
-      console.warn('[ClaudeProfileManager] Cannot rename to empty name');
+      console.warn("[ClaudeProfileManager] Cannot rename to empty name");
       return false;
     }
 
     profile.name = newName.trim();
     this.save();
-    console.warn('[ClaudeProfileManager] Renamed profile:', profileId, 'to:', newName);
+    console.warn(
+      "[ClaudeProfileManager] Renamed profile:",
+      profileId,
+      "to:",
+      newName,
+    );
     return true;
   }
 
@@ -316,12 +324,16 @@ export class ClaudeProfileManager {
 
     this.save();
 
-    const isEncrypted = profile.oauthToken.startsWith('enc:');
-    console.warn('[ClaudeProfileManager] Set OAuth token for profile:', profile.name, {
-      email: email || '(not captured)',
-      encrypted: isEncrypted,
-      tokenLength: token.length
-    });
+    const isEncrypted = profile.oauthToken.startsWith("enc:");
+    console.warn(
+      "[ClaudeProfileManager] Set OAuth token for profile:",
+      profile.name,
+      {
+        email: email || "(not captured)",
+        encrypted: isEncrypted,
+        tokenLength: token.length,
+      },
+    );
     return true;
   }
 
@@ -350,14 +362,23 @@ export class ClaudeProfileManager {
       const decryptedToken = decryptToken(profile.oauthToken);
       if (decryptedToken) {
         env.CLAUDE_CODE_OAUTH_TOKEN = decryptedToken;
-        console.warn('[ClaudeProfileManager] Using OAuth token for profile:', profile.name);
+        console.warn(
+          "[ClaudeProfileManager] Using OAuth token for profile:",
+          profile.name,
+        );
       } else {
-        console.warn('[ClaudeProfileManager] Failed to decrypt token for profile:', profile.name);
+        console.warn(
+          "[ClaudeProfileManager] Failed to decrypt token for profile:",
+          profile.name,
+        );
       }
     } else if (profile?.configDir && !profile.isDefault) {
       // Fallback to configDir for backward compatibility
       env.CLAUDE_CONFIG_DIR = profile.configDir;
-      console.warn('[ClaudeProfileManager] Using configDir for profile:', profile.name);
+      console.warn(
+        "[ClaudeProfileManager] Using configDir for profile:",
+        profile.name,
+      );
     }
 
     return env;
@@ -366,7 +387,10 @@ export class ClaudeProfileManager {
   /**
    * Update usage data for a profile (parsed from /usage output)
    */
-  updateProfileUsage(profileId: string, usageOutput: string): ClaudeUsageData | null {
+  updateProfileUsage(
+    profileId: string,
+    usageOutput: string,
+  ): ClaudeUsageData | null {
     const profile = this.getProfile(profileId);
     if (!profile) {
       return null;
@@ -376,30 +400,47 @@ export class ClaudeProfileManager {
     profile.usage = usage;
     this.save();
 
-    console.warn('[ClaudeProfileManager] Updated usage for', profile.name, ':', usage);
+    console.warn(
+      "[ClaudeProfileManager] Updated usage for",
+      profile.name,
+      ":",
+      usage,
+    );
     return usage;
   }
 
   /**
    * Record a rate limit event for a profile
    */
-  recordRateLimitEvent(profileId: string, resetTimeStr: string): ClaudeRateLimitEvent {
+  recordRateLimitEvent(
+    profileId: string,
+    resetTimeStr: string,
+  ): ClaudeRateLimitEvent {
     const profile = this.getProfile(profileId);
     if (!profile) {
-      throw new Error('Profile not found');
+      throw new Error("Profile not found");
     }
 
     const event = recordRateLimitEventImpl(profile, resetTimeStr);
     this.save();
 
-    console.warn('[ClaudeProfileManager] Recorded rate limit event for', profile.name, ':', event);
+    console.warn(
+      "[ClaudeProfileManager] Recorded rate limit event for",
+      profile.name,
+      ":",
+      event,
+    );
     return event;
   }
 
   /**
    * Check if a profile is currently rate-limited
    */
-  isProfileRateLimited(profileId: string): { limited: boolean; type?: 'session' | 'weekly'; resetAt?: Date } {
+  isProfileRateLimited(profileId: string): {
+    limited: boolean;
+    type?: "session" | "weekly";
+    resetAt?: Date;
+  } {
     const profile = this.getProfile(profileId);
     if (!profile) {
       return { limited: false };
@@ -413,13 +454,21 @@ export class ClaudeProfileManager {
    */
   getBestAvailableProfile(excludeProfileId?: string): ClaudeProfile | null {
     const settings = this.getAutoSwitchSettings();
-    return getBestAvailableProfile(this.data.profiles, settings, excludeProfileId);
+    return getBestAvailableProfile(
+      this.data.profiles,
+      settings,
+      excludeProfileId,
+    );
   }
 
   /**
    * Determine if we should proactively switch profiles based on current usage
    */
-  shouldProactivelySwitch(profileId: string): { shouldSwitch: boolean; reason?: string; suggestedProfile?: ClaudeProfile } {
+  shouldProactivelySwitch(profileId: string): {
+    shouldSwitch: boolean;
+    reason?: string;
+    suggestedProfile?: ClaudeProfile;
+  } {
     const profile = this.getProfile(profileId);
     if (!profile) {
       return { shouldSwitch: false };
@@ -461,7 +510,14 @@ export class ClaudeProfileManager {
    * @returns true if the profile can authenticate, false otherwise
    */
   hasValidAuth(profileId?: string): boolean {
-    const profile = profileId ? this.getProfile(profileId) : this.getActiveProfile();
+    // Check 0: Proxy mode - if ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN are set in .env
+    if (this.isProxyModeEnabled()) {
+      return true;
+    }
+
+    const profile = profileId
+      ? this.getProfile(profileId)
+      : this.getActiveProfile();
     if (!profile) {
       return false;
     }
@@ -476,6 +532,35 @@ export class ClaudeProfileManager {
       return true;
     }
 
+    return false;
+  }
+
+  /**
+   * Check if proxy mode is enabled via .env file
+   * Proxy mode = ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN both set
+   */
+  private isProxyModeEnabled(): boolean {
+    const autoBuildPaths = [
+      join(app.getAppPath(), "..", "backend"),
+      join(process.cwd(), "apps", "backend"),
+      join(app.getAppPath(), "..", "auto-claude"),
+    ];
+
+    for (const basePath of autoBuildPaths) {
+      const envPath = join(basePath, ".env");
+      if (existsSync(envPath)) {
+        try {
+          const content = readFileSync(envPath, "utf-8");
+          const hasBaseUrl = /^ANTHROPIC_BASE_URL\s*=/m.test(content);
+          const hasAuthToken = /^ANTHROPIC_AUTH_TOKEN\s*=/m.test(content);
+          if (hasBaseUrl && hasAuthToken) {
+            return true;
+          }
+        } catch {
+          // Continue to next path
+        }
+      }
+    }
     return false;
   }
 
@@ -499,7 +584,7 @@ export class ClaudeProfileManager {
     }
 
     return {
-      CLAUDE_CONFIG_DIR: profile.configDir
+      CLAUDE_CONFIG_DIR: profile.configDir,
     };
   }
 

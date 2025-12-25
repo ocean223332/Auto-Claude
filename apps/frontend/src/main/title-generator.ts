@@ -1,19 +1,24 @@
-import path from 'path';
-import { existsSync, readFileSync } from 'fs';
-import { spawn } from 'child_process';
-import { app } from 'electron';
-import { EventEmitter } from 'events';
-import { detectRateLimit, createSDKRateLimitInfo, getProfileEnv } from './rate-limit-detector';
-import { findPythonCommand, parsePythonCommand } from './python-detector';
+import path from "path";
+import { existsSync, readFileSync } from "fs";
+import { spawn } from "child_process";
+import { app } from "electron";
+import { EventEmitter } from "events";
+import {
+  detectRateLimit,
+  createSDKRateLimitInfo,
+  getProfileEnv,
+} from "./rate-limit-detector";
+import { findPythonCommand, parsePythonCommand } from "./python-detector";
 
 /**
  * Debug logging - only logs when DEBUG=true or in development mode
  */
-const DEBUG = process.env.DEBUG === 'true' || process.env.NODE_ENV === 'development';
+const DEBUG =
+  process.env.DEBUG === "true" || process.env.NODE_ENV === "development";
 
 function debug(...args: unknown[]): void {
   if (DEBUG) {
-    console.warn('[TitleGenerator]', ...args);
+    console.warn("[TitleGenerator]", ...args);
   }
 }
 
@@ -22,12 +27,12 @@ function debug(...args: unknown[]): void {
  */
 export class TitleGenerator extends EventEmitter {
   // Auto-detect Python command on initialization
-  private pythonPath: string = findPythonCommand() || 'python';
-  private autoBuildSourcePath: string = '';
+  private pythonPath: string = findPythonCommand() || "python";
+  private autoBuildSourcePath: string = "";
 
   constructor() {
     super();
-    debug('TitleGenerator initialized');
+    debug("TitleGenerator initialized");
   }
 
   /**
@@ -52,18 +57,18 @@ export class TitleGenerator extends EventEmitter {
 
     const possiblePaths = [
       // New apps structure: from out/main -> apps/backend
-      path.resolve(__dirname, '..', '..', '..', 'backend'),
-      path.resolve(app.getAppPath(), '..', 'backend'),
-      path.resolve(process.cwd(), 'apps', 'backend'),
+      path.resolve(__dirname, "..", "..", "..", "backend"),
+      path.resolve(app.getAppPath(), "..", "backend"),
+      path.resolve(process.cwd(), "apps", "backend"),
       // Legacy paths for backwards compatibility
-      path.resolve(__dirname, '..', '..', '..', 'auto-claude'),
-      path.resolve(app.getAppPath(), '..', 'auto-claude'),
-      path.resolve(process.cwd(), 'auto-claude')
+      path.resolve(__dirname, "..", "..", "..", "auto-claude"),
+      path.resolve(app.getAppPath(), "..", "auto-claude"),
+      path.resolve(process.cwd(), "auto-claude"),
     ];
 
     for (const p of possiblePaths) {
       // Use requirements.txt as marker - it always exists in auto-claude source
-      if (existsSync(p) && existsSync(path.join(p, 'requirements.txt'))) {
+      if (existsSync(p) && existsSync(path.join(p, "requirements.txt"))) {
         return p;
       }
     }
@@ -77,25 +82,27 @@ export class TitleGenerator extends EventEmitter {
     const autoBuildSource = this.getAutoBuildSourcePath();
     if (!autoBuildSource) return {};
 
-    const envPath = path.join(autoBuildSource, '.env');
+    const envPath = path.join(autoBuildSource, ".env");
     if (!existsSync(envPath)) return {};
 
     try {
-      const envContent = readFileSync(envPath, 'utf-8');
+      const envContent = readFileSync(envPath, "utf-8");
       const envVars: Record<string, string> = {};
 
       // Handle both Unix (\n) and Windows (\r\n) line endings
       for (const line of envContent.split(/\r?\n/)) {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
+        if (!trimmed || trimmed.startsWith("#")) continue;
 
-        const eqIndex = trimmed.indexOf('=');
+        const eqIndex = trimmed.indexOf("=");
         if (eqIndex > 0) {
           const key = trimmed.substring(0, eqIndex).trim();
           let value = trimmed.substring(eqIndex + 1).trim();
 
-          if ((value.startsWith('"') && value.endsWith('"')) ||
-              (value.startsWith("'") && value.endsWith("'"))) {
+          if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+          ) {
             value = value.slice(1, -1);
           }
 
@@ -118,18 +125,24 @@ export class TitleGenerator extends EventEmitter {
     const autoBuildSource = this.getAutoBuildSourcePath();
 
     if (!autoBuildSource) {
-      debug('Auto-claude source path not found');
+      debug("Auto-claude source path not found");
       return null;
     }
 
     const prompt = this.createTitlePrompt(description);
     const script = this.createGenerationScript(prompt);
 
-    debug('Generating title for description:', description.substring(0, 100) + '...');
+    debug(
+      "Generating title for description:",
+      description.substring(0, 100) + "...",
+    );
 
     const autoBuildEnv = this.loadAutoBuildEnv();
-    debug('Environment loaded', {
-      hasOAuthToken: !!autoBuildEnv.CLAUDE_CODE_OAUTH_TOKEN
+    debug("Environment loaded", {
+      hasOAuthToken: !!autoBuildEnv.CLAUDE_CODE_OAUTH_TOKEN,
+      hasProxyAuth: !!(
+        autoBuildEnv.ANTHROPIC_BASE_URL && autoBuildEnv.ANTHROPIC_AUTH_TOKEN
+      ),
     });
 
     // Get active Claude profile environment (CLAUDE_CONFIG_DIR if not default)
@@ -137,71 +150,80 @@ export class TitleGenerator extends EventEmitter {
 
     return new Promise((resolve) => {
       // Parse Python command to handle space-separated commands like "py -3"
-      const [pythonCommand, pythonBaseArgs] = parsePythonCommand(this.pythonPath);
-      const childProcess = spawn(pythonCommand, [...pythonBaseArgs, '-c', script], {
-        cwd: autoBuildSource,
-        env: {
-          ...process.env,
-          ...autoBuildEnv,
-          ...profileEnv, // Include active Claude profile config
-          PYTHONUNBUFFERED: '1',
-          PYTHONIOENCODING: 'utf-8',
-          PYTHONUTF8: '1'
-        }
-      });
+      const [pythonCommand, pythonBaseArgs] = parsePythonCommand(
+        this.pythonPath,
+      );
+      const childProcess = spawn(
+        pythonCommand,
+        [...pythonBaseArgs, "-c", script],
+        {
+          cwd: autoBuildSource,
+          env: {
+            ...process.env,
+            ...autoBuildEnv,
+            ...profileEnv, // Include active Claude profile config
+            PYTHONUNBUFFERED: "1",
+            PYTHONIOENCODING: "utf-8",
+            PYTHONUTF8: "1",
+          },
+        },
+      );
 
-      let output = '';
-      let errorOutput = '';
+      let output = "";
+      let errorOutput = "";
       const timeout = setTimeout(() => {
-        console.warn('[TitleGenerator] Title generation timed out after 60s');
+        console.warn("[TitleGenerator] Title generation timed out after 60s");
         childProcess.kill();
         resolve(null);
       }, 60000); // 60 second timeout for SDK initialization + API call
 
-      childProcess.stdout?.on('data', (data: Buffer) => {
+      childProcess.stdout?.on("data", (data: Buffer) => {
         output += data.toString();
       });
 
-      childProcess.stderr?.on('data', (data: Buffer) => {
+      childProcess.stderr?.on("data", (data: Buffer) => {
         errorOutput += data.toString();
       });
 
-      childProcess.on('exit', (code: number | null) => {
+      childProcess.on("exit", (code: number | null) => {
         clearTimeout(timeout);
 
         if (code === 0 && output.trim()) {
           const title = this.cleanTitle(output.trim());
-          debug('Generated title:', title);
+          debug("Generated title:", title);
           resolve(title);
         } else {
           // Check for rate limit
           const combinedOutput = `${output}\n${errorOutput}`;
           const rateLimitDetection = detectRateLimit(combinedOutput);
           if (rateLimitDetection.isRateLimited) {
-            console.warn('[TitleGenerator] Rate limit detected:', {
+            console.warn("[TitleGenerator] Rate limit detected:", {
               resetTime: rateLimitDetection.resetTime,
               limitType: rateLimitDetection.limitType,
-              suggestedProfile: rateLimitDetection.suggestedProfile?.name
+              suggestedProfile: rateLimitDetection.suggestedProfile?.name,
             });
 
-            const rateLimitInfo = createSDKRateLimitInfo('title-generator', rateLimitDetection);
-            this.emit('sdk-rate-limit', rateLimitInfo);
+            const rateLimitInfo = createSDKRateLimitInfo(
+              "title-generator",
+              rateLimitDetection,
+            );
+            this.emit("sdk-rate-limit", rateLimitInfo);
           }
 
           // Always log failures to help diagnose issues
-          console.warn('[TitleGenerator] Title generation failed', {
+          console.warn("[TitleGenerator] Title generation failed", {
             code,
             errorOutput: errorOutput.substring(0, 500),
             output: output.substring(0, 200),
-            isRateLimited: rateLimitDetection.isRateLimited
+            isRateLimited: rateLimitDetection.isRateLimited,
           });
           resolve(null);
         }
       });
 
-      childProcess.on('error', (err) => {
+      childProcess.on("error", (err) => {
         clearTimeout(timeout);
-        console.warn('[TitleGenerator] Process error:', err.message);
+        console.warn("[TitleGenerator] Process error:", err.message);
         resolve(null);
       });
     });
@@ -229,6 +251,7 @@ Title:`;
     return `
 import asyncio
 import sys
+import os
 
 async def generate_title():
     try:
@@ -236,10 +259,13 @@ async def generate_title():
 
         prompt = ${escapedPrompt}
 
+        # Use model from environment variable, fallback to claude-haiku-4-5
+        model = os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL", "claude-haiku-4-5")
+
         # Create a minimal client for simple text generation (no tools needed)
         client = ClaudeSDKClient(
             options=ClaudeAgentOptions(
-                model="claude-haiku-4-5",
+                model=model,
                 system_prompt="You generate short, concise task titles (3-7 words). Output ONLY the title, nothing else. No quotes, no explanation, no preamble.",
                 max_turns=1,
             )
@@ -289,17 +315,17 @@ asyncio.run(generate_title())
    */
   private cleanTitle(title: string): string {
     // Remove quotes if present
-    let cleaned = title.replace(/^["']|["']$/g, '');
+    let cleaned = title.replace(/^["']|["']$/g, "");
 
     // Remove any "Title:" or similar prefixes
-    cleaned = cleaned.replace(/^(title|task|feature)[:\s]*/i, '');
+    cleaned = cleaned.replace(/^(title|task|feature)[:\s]*/i, "");
 
     // Capitalize first letter
     cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 
     // Truncate if too long (max 100 chars)
     if (cleaned.length > 100) {
-      cleaned = cleaned.substring(0, 97) + '...';
+      cleaned = cleaned.substring(0, 97) + "...";
     }
 
     return cleaned.trim();
