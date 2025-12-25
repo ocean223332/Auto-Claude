@@ -53,7 +53,7 @@ jobs:
         run: cd apps/frontend && pnpm run build
 
       - name: Package Windows
-        run: cd apps/frontend && electron-vite build && electron-builder --win --publish never
+        run: cd apps/frontend && pnpm exec electron-builder --win --publish never
         env:
           CSC_LINK: ${{ secrets.WIN_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
