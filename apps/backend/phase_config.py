@@ -7,10 +7,30 @@ Reads configuration from task_metadata.json and provides resolved model IDs.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Literal, TypedDict
 
-# Model shorthand to full model ID mapping
+
+def get_model_id_map() -> dict[str, str]:
+    """
+    Get model shorthand to full model ID mapping.
+    Uses environment variables if set, otherwise uses defaults.
+    """
+    return {
+        "opus": os.environ.get(
+            "ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-5-20251101"
+        ),
+        "sonnet": os.environ.get(
+            "ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-5-20250929"
+        ),
+        "haiku": os.environ.get(
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL", "claude-haiku-4-5-20251001"
+        ),
+    }
+
+
+# Legacy constant for backwards compatibility (use get_model_id_map() for dynamic lookup)
 MODEL_ID_MAP: dict[str, str] = {
     "opus": "claude-opus-4-5-20251101",
     "sonnet": "claude-sonnet-4-5-20250929",
@@ -100,9 +120,12 @@ def resolve_model_id(model: str) -> str:
     Returns:
         Full Claude model ID
     """
+    # Get dynamic model map (reads from environment)
+    model_map = get_model_id_map()
+
     # Check if it's a shorthand
-    if model in MODEL_ID_MAP:
-        return MODEL_ID_MAP[model]
+    if model in model_map:
+        return model_map[model]
 
     # Already a full model ID
     return model

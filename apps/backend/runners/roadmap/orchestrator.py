@@ -6,6 +6,7 @@ Coordinates all phases of the roadmap generation process.
 
 import asyncio
 import json
+import os
 from pathlib import Path
 
 from client import create_client
@@ -27,7 +28,9 @@ class RoadmapOrchestrator:
         self,
         project_dir: Path,
         output_dir: Path | None = None,
-        model: str = "claude-opus-4-5-20251101",
+        model: str = os.environ.get(
+            "ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-5-20251101"
+        ),
         thinking_level: str = "medium",
         refresh: bool = False,
         enable_competitor_analysis: bool = False,

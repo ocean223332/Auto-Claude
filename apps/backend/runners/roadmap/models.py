@@ -2,6 +2,7 @@
 Data models for roadmap generation.
 """
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,6 +24,8 @@ class RoadmapConfig:
 
     project_dir: Path
     output_dir: Path
-    model: str = "claude-opus-4-5-20251101"
+    model: str = os.environ.get(
+        "ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-5-20251101"
+    )
     refresh: bool = False  # Force regeneration even if roadmap exists
     enable_competitor_analysis: bool = False  # Enable competitor analysis phase

@@ -4,6 +4,7 @@ Type definitions for the ideation module.
 Contains dataclasses and type definitions used throughout ideation components.
 """
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +32,8 @@ class IdeationConfig:
     include_roadmap_context: bool = True
     include_kanban_context: bool = True
     max_ideas_per_type: int = 5
-    model: str = "claude-opus-4-5-20251101"
+    model: str = os.environ.get(
+        "ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-5-20251101"
+    )
     refresh: bool = False
     append: bool = False  # If True, preserve existing ideas when merging

@@ -10,6 +10,7 @@ Uses Claude agents to generate ideas of different types:
 - Code quality
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -56,7 +57,9 @@ class IdeationGenerator:
         self,
         project_dir: Path,
         output_dir: Path,
-        model: str = "claude-opus-4-5-20251101",
+        model: str = os.environ.get(
+            "ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-5-20251101"
+        ),
         thinking_level: str = "medium",
         max_ideas_per_type: int = 5,
     ):

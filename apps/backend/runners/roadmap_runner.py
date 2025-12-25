@@ -14,6 +14,7 @@ Usage:
 """
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -55,7 +56,9 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="claude-opus-4-5-20251101",
+        default=os.environ.get(
+            "ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-5-20251101"
+        ),
         help="Model to use (default: claude-opus-4-5-20251101)",
     )
     parser.add_argument(
