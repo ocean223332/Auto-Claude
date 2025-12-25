@@ -45,9 +45,9 @@ coverage/
 *.temp
 .cache/
 
-# Package manager locks - using npm only
+# Package manager locks - keep pnpm lock, ignore others
 yarn.lock
-pnpm-lock.yaml
+package-lock.json
 bun.lock
 bun.lockb
 
