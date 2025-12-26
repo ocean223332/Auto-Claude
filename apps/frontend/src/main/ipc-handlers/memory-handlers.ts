@@ -5,35 +5,35 @@
  * Uses LadybugDB (embedded Kuzu-based database) - no Docker required.
  */
 
-import { ipcMain } from "electron";
-import { spawn } from "child_process";
-import * as path from "path";
-import * as fs from "fs";
-import { IPC_CHANNELS } from "../../shared/constants";
+import { ipcMain } from 'electron';
+import { spawn } from 'child_process';
+import * as path from 'path';
+import * as fs from 'fs';
+import { IPC_CHANNELS } from '../../shared/constants';
 import type {
   IPCResult,
   InfrastructureStatus,
   GraphitiValidationResult,
   GraphitiConnectionTestResult,
-} from "../../shared/types";
+} from '../../shared/types';
 import {
   getMemoryServiceStatus,
   getMemoryService,
   getDefaultDbPath,
   isKuzuAvailable,
-} from "../memory-service";
-import { validateOpenAIApiKey } from "../api-validation-service";
-import { findPythonCommand, parsePythonCommand } from "../python-detector";
+} from '../memory-service';
+import { validateOpenAIApiKey } from '../api-validation-service';
+import { findPythonCommand, parsePythonCommand } from '../python-detector';
 
 /**
  * Ollama Service Status
  * Contains information about Ollama service availability and configuration
  */
 interface OllamaStatus {
-  running: boolean; // Whether Ollama service is currently running
-  url: string; // Base URL of the Ollama API
-  version?: string; // Ollama version (if available)
-  message?: string; // Additional status message
+  running: boolean;      // Whether Ollama service is currently running
+  url: string;          // Base URL of the Ollama API
+  version?: string;     // Ollama version (if available)
+  message?: string;     // Additional status message
 }
 
 /**
@@ -41,10 +41,10 @@ interface OllamaStatus {
  * Metadata about a model available in Ollama
  */
 interface OllamaModel {
-  name: string; // Model identifier (e.g., 'embeddinggemma', 'llama2')
-  size_bytes: number; // Model size in bytes
-  size_gb: number; // Model size in gigabytes (formatted)
-  modified_at: string; // Last modified timestamp
+  name: string;         // Model identifier (e.g., 'embeddinggemma', 'llama2')
+  size_bytes: number;   // Model size in bytes
+  size_gb: number;      // Model size in gigabytes (formatted)
+  modified_at: string;  // Last modified timestamp
   is_embedding: boolean; // Whether this is an embedding model
   embedding_dim?: number | null; // Embedding dimension (only for embedding models)
   description?: string; // Model description
@@ -55,9 +55,9 @@ interface OllamaModel {
  * Specialized model info for semantic search models
  */
 interface OllamaEmbeddingModel {
-  name: string; // Model name
+  name: string;             // Model name
   embedding_dim: number | null; // Embedding vector dimension
-  description: string; // Model description
+  description: string;      // Model description
   size_bytes: number;
   size_gb: number;
 }
@@ -67,11 +67,11 @@ interface OllamaEmbeddingModel {
  * Pre-curated models suitable for Auto Claude memory system
  */
 interface OllamaRecommendedModel {
-  name: string; // Model identifier
-  description: string; // Human-readable description
+  name: string;          // Model identifier
+  description: string;   // Human-readable description
   size_estimate: string; // Estimated download size (e.g., '621 MB')
-  dim: number; // Embedding vector dimension
-  installed: boolean; // Whether model is currently installed
+  dim: number;           // Embedding vector dimension
+  installed: boolean;    // Whether model is currently installed
 }
 
 /**
@@ -79,9 +79,9 @@ interface OllamaRecommendedModel {
  * Contains the final status after model download completes
  */
 interface OllamaPullResult {
-  model: string; // Model name that was pulled
-  status: "completed" | "failed"; // Final status
-  output: string[]; // Log messages from pull operation
+  model: string;                         // Model name that was pulled
+  status: 'completed' | 'failed';        // Final status
+  output: string[];                      // Log messages from pull operation
 }
 
 /**
@@ -102,50 +102,21 @@ interface OllamaPullResult {
  */
 async function executeOllamaDetector(
   command: string,
-  baseUrl?: string,
+  baseUrl?: string
 ): Promise<{ success: boolean; data?: unknown; error?: string }> {
   const pythonCmd = findPythonCommand();
   if (!pythonCmd) {
-    return { success: false, error: "Python not found" };
+    return { success: false, error: 'Python not found' };
   }
 
   // Find the ollama_model_detector.py script
   const possiblePaths = [
-    // Development paths - from apps/frontend/out/main go up to apps/backend
-    // __dirname = apps/frontend/out/main -> need 4 levels up to apps/
-    path.resolve(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "..",
-      "backend",
-      "ollama_model_detector.py",
-    ),
-    // From apps/frontend cwd, go up to apps/backend
-    path.resolve(process.cwd(), "..", "backend", "ollama_model_detector.py"),
-    // From project root
-    path.resolve(process.cwd(), "apps", "backend", "ollama_model_detector.py"),
-    // From project root when cwd is apps/frontend
-    path.resolve(
-      process.cwd(),
-      "..",
-      "..",
-      "apps",
-      "backend",
-      "ollama_model_detector.py",
-    ),
+    // Development paths
+    path.resolve(__dirname, '..', '..', '..', 'backend', 'ollama_model_detector.py'),
+    path.resolve(process.cwd(), 'apps', 'backend', 'ollama_model_detector.py'),
     // Legacy paths (for backwards compatibility)
-    path.resolve(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "..",
-      "auto-claude",
-      "ollama_model_detector.py",
-    ),
-    path.resolve(process.cwd(), "auto-claude", "ollama_model_detector.py"),
+    path.resolve(__dirname, '..', '..', '..', 'auto-claude', 'ollama_model_detector.py'),
+    path.resolve(process.cwd(), 'auto-claude', 'ollama_model_detector.py'),
   ];
 
   let scriptPath: string | null = null;
@@ -157,32 +128,29 @@ async function executeOllamaDetector(
   }
 
   if (!scriptPath) {
-    return {
-      success: false,
-      error: "ollama_model_detector.py script not found",
-    };
+    return { success: false, error: 'ollama_model_detector.py script not found' };
   }
 
   const [pythonExe, baseArgs] = parsePythonCommand(pythonCmd);
   const args = [...baseArgs, scriptPath, command];
   if (baseUrl) {
-    args.push("--base-url", baseUrl);
+    args.push('--base-url', baseUrl);
   }
 
   return new Promise((resolve) => {
     let resolved = false;
     const proc = spawn(pythonExe, args, {
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
 
-    let stdout = "";
-    let stderr = "";
+    let stdout = '';
+    let stderr = '';
 
-    proc.stdout.on("data", (data) => {
+    proc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    proc.stderr.on("data", (data) => {
+    proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
@@ -191,11 +159,11 @@ async function executeOllamaDetector(
       if (!resolved) {
         resolved = true;
         proc.kill();
-        resolve({ success: false, error: "Timeout" });
+        resolve({ success: false, error: 'Timeout' });
       }
     }, 10000);
 
-    proc.on("close", (code) => {
+    proc.on('close', (code) => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timeoutId);
@@ -210,7 +178,7 @@ async function executeOllamaDetector(
       }
     });
 
-    proc.on("error", (err) => {
+    proc.on('error', (err) => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timeoutId);
@@ -251,13 +219,10 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to check memory status",
+          error: error instanceof Error ? error.message : 'Failed to check memory status',
         };
       }
-    },
+    }
   );
 
   // List available databases
@@ -270,36 +235,30 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to list databases",
+          error: error instanceof Error ? error.message : 'Failed to list databases',
         };
       }
-    },
+    }
   );
 
   // Test memory database connection
   ipcMain.handle(
     IPC_CHANNELS.MEMORY_TEST_CONNECTION,
-    async (
-      _,
-      dbPath?: string,
-      database?: string,
-    ): Promise<IPCResult<GraphitiValidationResult>> => {
+    async (_, dbPath?: string, database?: string): Promise<IPCResult<GraphitiValidationResult>> => {
       try {
         if (!isKuzuAvailable()) {
           return {
             success: true,
             data: {
               success: false,
-              message:
-                "kuzu-node is not installed. Memory features require Python 3.12+ with LadybugDB.",
+              message: 'kuzu-node is not installed. Memory features require Python 3.12+ with LadybugDB.',
             },
           };
         }
 
         const service = getMemoryService({
           dbPath: dbPath || getDefaultDbPath(),
-          database: database || "auto_claude_memory",
+          database: database || 'auto_claude_memory',
         });
 
         const result = await service.testConnection();
@@ -307,13 +266,10 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to test connection",
+          error: error instanceof Error ? error.message : 'Failed to test connection',
         };
       }
-    },
+    }
   );
 
   // ============================================
@@ -323,14 +279,10 @@ export function registerMemoryHandlers(): void {
   // Validate LLM provider API key (OpenAI, Anthropic, etc.)
   ipcMain.handle(
     IPC_CHANNELS.GRAPHITI_VALIDATE_LLM,
-    async (
-      _,
-      provider: string,
-      apiKey: string,
-    ): Promise<IPCResult<GraphitiValidationResult>> => {
+    async (_, provider: string, apiKey: string): Promise<IPCResult<GraphitiValidationResult>> => {
       try {
         // For now, we only validate OpenAI - other providers can be added later
-        if (provider === "openai") {
+        if (provider === 'openai') {
           const result = await validateOpenAIApiKey(apiKey);
           return { success: true, data: result };
         }
@@ -341,7 +293,7 @@ export function registerMemoryHandlers(): void {
             success: true,
             data: {
               success: false,
-              message: "API key is required",
+              message: 'API key is required',
             },
           };
         }
@@ -357,13 +309,10 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to validate API key",
+          error: error instanceof Error ? error.message : 'Failed to validate API key',
         };
       }
-    },
+    }
   );
 
   // Test full Graphiti connection (Database + LLM provider)
@@ -376,7 +325,7 @@ export function registerMemoryHandlers(): void {
         database?: string;
         llmProvider: string;
         apiKey: string;
-      },
+      }
     ): Promise<IPCResult<GraphitiConnectionTestResult>> => {
       try {
         // Test database connection
@@ -385,13 +334,12 @@ export function registerMemoryHandlers(): void {
         if (!isKuzuAvailable()) {
           databaseResult = {
             success: false,
-            message:
-              "kuzu-node is not installed. Memory features require Python 3.12+ with LadybugDB.",
+            message: 'kuzu-node is not installed. Memory features require Python 3.12+ with LadybugDB.',
           };
         } else {
           const service = getMemoryService({
             dbPath: config.dbPath || getDefaultDbPath(),
-            database: config.database || "auto_claude_memory",
+            database: config.database || 'auto_claude_memory',
           });
           databaseResult = await service.testConnection();
         }
@@ -399,28 +347,27 @@ export function registerMemoryHandlers(): void {
         // Test LLM provider
         let llmResult: GraphitiValidationResult;
 
-        if (config.llmProvider === "openai") {
+        if (config.llmProvider === 'openai') {
           llmResult = await validateOpenAIApiKey(config.apiKey);
-        } else if (config.llmProvider === "ollama") {
+        } else if (config.llmProvider === 'ollama') {
           // Ollama doesn't need API key validation
           llmResult = {
             success: true,
-            message: "Ollama (local) does not require API key validation",
-            details: { provider: "ollama" },
+            message: 'Ollama (local) does not require API key validation',
+            details: { provider: 'ollama' },
           };
         } else {
           // Basic validation for other providers
-          llmResult =
-            config.apiKey && config.apiKey.trim()
-              ? {
-                  success: true,
-                  message: `${config.llmProvider} API key format appears valid`,
-                  details: { provider: config.llmProvider },
-                }
-              : {
-                  success: false,
-                  message: "API key is required",
-                };
+          llmResult = config.apiKey && config.apiKey.trim()
+            ? {
+                success: true,
+                message: `${config.llmProvider} API key format appears valid`,
+                details: { provider: config.llmProvider },
+              }
+            : {
+                success: false,
+                message: 'API key is required',
+              };
         }
 
         return {
@@ -434,13 +381,10 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to test Graphiti connection",
+          error: error instanceof Error ? error.message : 'Failed to test Graphiti connection',
         };
       }
-    },
+    }
   );
 
   // ============================================
@@ -452,12 +396,12 @@ export function registerMemoryHandlers(): void {
     IPC_CHANNELS.OLLAMA_CHECK_STATUS,
     async (_, baseUrl?: string): Promise<IPCResult<OllamaStatus>> => {
       try {
-        const result = await executeOllamaDetector("check-status", baseUrl);
+        const result = await executeOllamaDetector('check-status', baseUrl);
 
         if (!result.success) {
           return {
             success: false,
-            error: result.error || "Failed to check Ollama status",
+            error: result.error || 'Failed to check Ollama status',
           };
         }
 
@@ -468,48 +412,38 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to check Ollama status",
+          error: error instanceof Error ? error.message : 'Failed to check Ollama status',
         };
       }
-    },
-  );
+    }
+   );
 
-  // ============================================
-  // Ollama Model Discovery & Management
-  // ============================================
+    // ============================================
+    // Ollama Model Discovery & Management
+    // ============================================
 
-  /**
-   * List all available Ollama models (LLMs and embeddings).
-   * Queries Ollama API to get model names, sizes, and metadata.
-   *
-   * @async
-   * @param {string} [baseUrl] - Optional custom Ollama base URL
-   * @returns {Promise<IPCResult<{ models, count }>>} Array of models with metadata
-   */
-  ipcMain.handle(
-    IPC_CHANNELS.OLLAMA_LIST_MODELS,
-    async (
-      _,
-      baseUrl?: string,
-    ): Promise<IPCResult<{ models: OllamaModel[]; count: number }>> => {
+    /**
+    * List all available Ollama models (LLMs and embeddings).
+    * Queries Ollama API to get model names, sizes, and metadata.
+    *
+    * @async
+    * @param {string} [baseUrl] - Optional custom Ollama base URL
+    * @returns {Promise<IPCResult<{ models, count }>>} Array of models with metadata
+    */
+   ipcMain.handle(
+     IPC_CHANNELS.OLLAMA_LIST_MODELS,
+     async (_, baseUrl?: string): Promise<IPCResult<{ models: OllamaModel[]; count: number }>> => {
       try {
-        const result = await executeOllamaDetector("list-models", baseUrl);
+        const result = await executeOllamaDetector('list-models', baseUrl);
 
         if (!result.success) {
           return {
             success: false,
-            error: result.error || "Failed to list Ollama models",
+            error: result.error || 'Failed to list Ollama models',
           };
         }
 
-        const data = result.data as {
-          models: OllamaModel[];
-          count: number;
-          url: string;
-        };
+        const data = result.data as { models: OllamaModel[]; count: number; url: string };
         return {
           success: true,
           data: {
@@ -520,42 +454,34 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to list Ollama models",
+          error: error instanceof Error ? error.message : 'Failed to list Ollama models',
         };
       }
-    },
+    }
   );
 
-  /**
-   * List only embedding models from Ollama.
-   * Filters the model list to show only models suitable for semantic search.
-   * Includes dimension info for model compatibility verification.
-   *
-   * @async
-   * @param {string} [baseUrl] - Optional custom Ollama base URL
-   * @returns {Promise<IPCResult<{ embedding_models, count }>>} Filtered embedding models
-   */
-  ipcMain.handle(
-    IPC_CHANNELS.OLLAMA_LIST_EMBEDDING_MODELS,
-    async (
-      _,
-      baseUrl?: string,
-    ): Promise<
-      IPCResult<{ embedding_models: OllamaEmbeddingModel[]; count: number }>
-    > => {
+   /**
+    * List only embedding models from Ollama.
+    * Filters the model list to show only models suitable for semantic search.
+    * Includes dimension info for model compatibility verification.
+    *
+    * @async
+    * @param {string} [baseUrl] - Optional custom Ollama base URL
+    * @returns {Promise<IPCResult<{ embedding_models, count }>>} Filtered embedding models
+    */
+   ipcMain.handle(
+     IPC_CHANNELS.OLLAMA_LIST_EMBEDDING_MODELS,
+     async (
+       _,
+       baseUrl?: string
+     ): Promise<IPCResult<{ embedding_models: OllamaEmbeddingModel[]; count: number }>> => {
       try {
-        const result = await executeOllamaDetector(
-          "list-embedding-models",
-          baseUrl,
-        );
+        const result = await executeOllamaDetector('list-embedding-models', baseUrl);
 
         if (!result.success) {
           return {
             success: false,
-            error: result.error || "Failed to list Ollama embedding models",
+            error: result.error || 'Failed to list Ollama embedding models',
           };
         }
 
@@ -574,97 +500,52 @@ export function registerMemoryHandlers(): void {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to list embedding models",
+          error: error instanceof Error ? error.message : 'Failed to list embedding models',
         };
       }
-    },
+    }
   );
 
-  /**
-   * Download (pull) an Ollama model from the Ollama registry.
-   * Spawns a Python subprocess to execute ollama pull command with real-time progress tracking.
-   * Emits OLLAMA_PULL_PROGRESS events to renderer with percentage, speed, and ETA.
-   *
-   * Progress events include:
-   * - modelName: The model being downloaded
-   * - status: Current status (downloading, extracting, etc.)
-   * - completed: Bytes downloaded so far
-   * - total: Total bytes to download
-   * - percentage: Completion percentage (0-100)
-   *
-   * @async
-   * @param {Electron.IpcMainInvokeEvent} event - IPC event object for sending progress updates
-   * @param {string} modelName - Name of the model to download (e.g., 'embeddinggemma')
-   * @param {string} [baseUrl] - Optional custom Ollama base URL
-   * @returns {Promise<IPCResult<OllamaPullResult>>} Result with status and output messages
-   */
-  ipcMain.handle(
-    IPC_CHANNELS.OLLAMA_PULL_MODEL,
-    async (
-      event,
-      modelName: string,
-      baseUrl?: string,
-    ): Promise<IPCResult<OllamaPullResult>> => {
+   /**
+    * Download (pull) an Ollama model from the Ollama registry.
+    * Spawns a Python subprocess to execute ollama pull command with real-time progress tracking.
+    * Emits OLLAMA_PULL_PROGRESS events to renderer with percentage, speed, and ETA.
+    *
+    * Progress events include:
+    * - modelName: The model being downloaded
+    * - status: Current status (downloading, extracting, etc.)
+    * - completed: Bytes downloaded so far
+    * - total: Total bytes to download
+    * - percentage: Completion percentage (0-100)
+    *
+    * @async
+    * @param {Electron.IpcMainInvokeEvent} event - IPC event object for sending progress updates
+    * @param {string} modelName - Name of the model to download (e.g., 'embeddinggemma')
+    * @param {string} [baseUrl] - Optional custom Ollama base URL
+    * @returns {Promise<IPCResult<OllamaPullResult>>} Result with status and output messages
+    */
+   ipcMain.handle(
+     IPC_CHANNELS.OLLAMA_PULL_MODEL,
+     async (
+       event,
+       modelName: string,
+       baseUrl?: string
+     ): Promise<IPCResult<OllamaPullResult>> => {
       try {
         const pythonCmd = findPythonCommand();
         if (!pythonCmd) {
-          return { success: false, error: "Python not found" };
+          return { success: false, error: 'Python not found' };
         }
 
         // Find the ollama_model_detector.py script
         const possiblePaths = [
-          // Development paths - from apps/frontend/out/main go up to apps/backend
-          // __dirname = apps/frontend/out/main -> need 4 levels up to apps/
-          path.resolve(
-            __dirname,
-            "..",
-            "..",
-            "..",
-            "..",
-            "backend",
-            "ollama_model_detector.py",
-          ),
-          // From apps/frontend cwd, go up to apps/backend
-          path.resolve(
-            process.cwd(),
-            "..",
-            "backend",
-            "ollama_model_detector.py",
-          ),
-          // From project root
-          path.resolve(
-            process.cwd(),
-            "apps",
-            "backend",
-            "ollama_model_detector.py",
-          ),
-          // From project root when cwd is apps/frontend
-          path.resolve(
-            process.cwd(),
-            "..",
-            "..",
-            "apps",
-            "backend",
-            "ollama_model_detector.py",
-          ),
-          // Legacy paths (for backwards compatibility)
-          path.resolve(
-            __dirname,
-            "..",
-            "..",
-            "..",
-            "..",
-            "auto-claude",
-            "ollama_model_detector.py",
-          ),
-          path.resolve(
-            process.cwd(),
-            "auto-claude",
-            "ollama_model_detector.py",
-          ),
+          // New apps structure
+          path.resolve(__dirname, '..', '..', '..', 'backend', 'ollama_model_detector.py'),
+          path.resolve(process.cwd(), 'apps', 'backend', 'ollama_model_detector.py'),
+          // Legacy paths for backwards compatibility
+          path.resolve(__dirname, '..', '..', '..', 'auto-claude', 'ollama_model_detector.py'),
+          path.resolve(process.cwd(), 'auto-claude', 'ollama_model_detector.py'),
+          path.resolve(process.cwd(), '..', 'auto-claude', 'ollama_model_detector.py'),
         ];
 
         let scriptPath: string | null = null;
@@ -676,61 +557,52 @@ export function registerMemoryHandlers(): void {
         }
 
         if (!scriptPath) {
-          return {
-            success: false,
-            error: "ollama_model_detector.py script not found",
-          };
+          return { success: false, error: 'ollama_model_detector.py script not found' };
         }
 
         const [pythonExe, baseArgs] = parsePythonCommand(pythonCmd);
-        const args = [...baseArgs, scriptPath, "pull-model", modelName];
+        const args = [...baseArgs, scriptPath, 'pull-model', modelName];
 
         return new Promise((resolve) => {
           const proc = spawn(pythonExe, args, {
-            stdio: ["ignore", "pipe", "pipe"],
+            stdio: ['ignore', 'pipe', 'pipe'],
             timeout: 600000, // 10 minute timeout for large models
           });
 
-          let stdout = "";
-          let stderr = "";
-          let stderrBuffer = ""; // Buffer for NDJSON parsing
+          let stdout = '';
+          let stderr = '';
+          let stderrBuffer = ''; // Buffer for NDJSON parsing
 
-          proc.stdout.on("data", (data) => {
+          proc.stdout.on('data', (data) => {
             stdout += data.toString();
           });
 
-          proc.stderr.on("data", (data) => {
+          proc.stderr.on('data', (data) => {
             const chunk = data.toString();
             stderr += chunk;
             stderrBuffer += chunk;
 
             // Parse NDJSON (newline-delimited JSON) from stderr
             // Ollama sends progress data as: {"status":"downloading","completed":X,"total":Y}
-            const lines = stderrBuffer.split("\n");
+            const lines = stderrBuffer.split('\n');
             // Keep the last incomplete line in the buffer
-            stderrBuffer = lines.pop() || "";
+            stderrBuffer = lines.pop() || '';
 
             lines.forEach((line) => {
               if (line.trim()) {
                 try {
                   const progressData = JSON.parse(line);
-
+                  
                   // Extract progress information
-                  if (
-                    progressData.completed !== undefined &&
-                    progressData.total !== undefined
-                  ) {
-                    const percentage =
-                      progressData.total > 0
-                        ? Math.round(
-                            (progressData.completed / progressData.total) * 100,
-                          )
-                        : 0;
+                  if (progressData.completed !== undefined && progressData.total !== undefined) {
+                    const percentage = progressData.total > 0 
+                      ? Math.round((progressData.completed / progressData.total) * 100) 
+                      : 0;
 
                     // Emit progress event to renderer
                     event.sender.send(IPC_CHANNELS.OLLAMA_PULL_PROGRESS, {
                       modelName,
-                      status: progressData.status || "downloading",
+                      status: progressData.status || 'downloading',
                       completed: progressData.completed,
                       total: progressData.total,
                       percentage,
@@ -743,7 +615,7 @@ export function registerMemoryHandlers(): void {
             });
           });
 
-          proc.on("close", (code) => {
+          proc.on('close', (code) => {
             if (code === 0 && stdout) {
               try {
                 const result = JSON.parse(stdout);
@@ -755,7 +627,7 @@ export function registerMemoryHandlers(): void {
                 } else {
                   resolve({
                     success: false,
-                    error: result.error || "Failed to pull model",
+                    error: result.error || 'Failed to pull model',
                   });
                 }
               } catch {
@@ -766,17 +638,16 @@ export function registerMemoryHandlers(): void {
             }
           });
 
-          proc.on("error", (err) => {
+          proc.on('error', (err) => {
             resolve({ success: false, error: err.message });
           });
         });
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to pull model",
+          error: error instanceof Error ? error.message : 'Failed to pull model',
         };
       }
-    },
+    }
   );
 }
